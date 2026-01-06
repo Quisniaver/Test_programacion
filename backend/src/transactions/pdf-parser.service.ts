@@ -16,11 +16,11 @@ export class PdfParserService {
         try {
           console.log('✓ PDF parseado');
           
-        
+          // Extraer texto de forma estructurada
           pdfText = this.extractStructuredText(pdfData);
           console.log(`Texto extraído: ${pdfText.length} caracteres`);
           
-        
+          // Procesar tabla de transacciones
           const transactions = this.parseTransactionTable(pdfText);
           console.log(`✓ ${transactions.length} transacciones extraídas correctamente`);
           
@@ -47,12 +47,12 @@ export class PdfParserService {
     
     console.log(`PDF tiene ${pdfData.Pages.length} páginas`);
     
-  
+    // Para cada página, extraer texto manteniendo cierta estructura
     pdfData.Pages.forEach((page: any, pageIndex: number) => {
       if (page.Texts && Array.isArray(page.Texts)) {
-       
+        // Ordenar textos por posición Y (vertical) y X (horizontal)
         const sortedTexts = [...page.Texts].sort((a, b) => {
-          
+          // Primero por posición Y (de arriba a abajo)
           const yDiff = a.y - b.y;
           if (Math.abs(yDiff) > 0.5) {
             return yDiff;
@@ -67,7 +67,7 @@ export class PdfParserService {
             try {
               const textContent = decodeURIComponent(textItem.R[0].T);
               
-             
+              // Si hay un cambio significativo en Y, agregar nueva línea
               if (lastY !== -1 && Math.abs(textItem.y - lastY) > 1) {
                 text += '\n';
               }
@@ -75,13 +75,13 @@ export class PdfParserService {
               text += textContent + ' ';
               lastY = textItem.y;
             } catch {
-              
+              // Si falla decodeURI, usar el texto directo
               text += textItem.R[0].T + ' ';
             }
           }
         });
         
-       
+        // Nueva línea entre páginas
         text += '\n\n';
       }
     });
@@ -114,7 +114,7 @@ export class PdfParserService {
       }
     }
     
-    
+    // Si no encontramos encabezado, buscar líneas que contengan INV-2025
     if (startIndex === 0) {
       console.log('Buscando transacciones directamente...');
       for (let i = 0; i < lines.length; i++) {
@@ -154,13 +154,13 @@ export class PdfParserService {
     
     console.log(`Encontradas ${matches.length} facturas en línea`);
     
- 
+    // Para cada factura encontrada, intentar extraer sus datos
     for (const invoiceId of matches) {
-     
+      // Encontrar la posición de esta factura en la línea
       const startIndex = line.indexOf(invoiceId);
       if (startIndex === -1) continue;
       
-     
+      // Tomar el substring desde esta factura hasta la siguiente o el final
       let endIndex = line.length;
       for (const otherInvoice of matches) {
         if (otherInvoice !== invoiceId) {
@@ -185,7 +185,7 @@ export class PdfParserService {
   
   private parseSingleTransaction(text: string, invoiceId: string): Partial<Transaction> | null {
     try {
-      
+      // Dividir el texto de la transacción por espacios
       const parts = text.split(/\s+/).filter(part => part.length > 0);
       
       if (parts.length < 4) {
@@ -213,7 +213,9 @@ export class PdfParserService {
         parts.splice(0, idIndex);
       }
       
-    
+      // Asumir estructura: ID Fecha Categoría Monto Estado Descripción...
+      // Pero la descripción puede contener espacios
+      
       const fecha = this.extractDateFromParts(parts, 1);
       const categoria = this.extractCategoriaFromParts(parts, 2);
       const monto = this.extractMontoFromParts(parts, 3);
@@ -269,7 +271,7 @@ export class PdfParserService {
       }
     }
     
-    ico
+    // Si no encontramos categoría conocida, tomar el siguiente campo no numérico
     for (let i = startIndex; i < Math.min(parts.length, startIndex + 3); i++) {
       if (!this.looksLikeDate(parts[i]) && !this.looksLikeAmount(parts[i])) {
         return parts[i].substring(0, 50); // Limitar longitud
